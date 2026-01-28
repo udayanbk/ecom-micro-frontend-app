@@ -10,6 +10,8 @@ import {
 import { Cart, EMPTY_CART } from "./cart.types";
 import Header from "./components/Header";
 import CartPage from "./components/CartPage";
+import MFEErrorBoundary from "./components/MFEErrorBoundary";
+import { createRoot } from "react-dom/client";
 
 const API_URL = "http://localhost:4000";
 
@@ -17,29 +19,18 @@ const API_URL = "http://localhost:4000";
    MFE CONTAINER
 ------------------------------------------- */
 const MFEContainer: React.FC<{
-  mount: (el: HTMLElement) => Promise<void | (() => void)> | void | (() => void);
+  mount: (el: HTMLElement) => void | (() => void);
 }> = ({ mount }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ref.current) return;
-
-    let cleanup: void | (() => void);
-
-    const result = mount(ref.current);
-
-    Promise.resolve(result).then((fn) => {
-      cleanup = fn;
-    });
-
-    return () => {
-      cleanup?.();
-    };
+    const cleanup = mount(ref.current);
+    return () => cleanup?.();
   }, [mount]);
 
   return <div ref={ref} />;
 };
-
 
 /* ------------------------------------------
    SHELL ROUTES
@@ -73,32 +64,31 @@ const ShellRoutes: React.FC = () => {
   };
 
   /* ---------- Session Restore ---------- */
-useEffect(() => {
-  const storedToken = localStorage.getItem("accessToken");
+  useEffect(() => {
+    const storedToken = localStorage.getItem("accessToken");
 
-  if (!storedToken) {
-    setAuthReady(true);      // ✅ auth resolved (unauthenticated)
-    setCheckingSession(false);
-    return;
-  }
-
-  fetch(`${API_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${storedToken}` },
-  })
-    .then((res) => {
-      if (res.status === 401) {
-        localStorage.removeItem("accessToken");
-        setToken(null);
-      } else if (res.ok) {
-        setToken(storedToken);
-      }
-    })
-    .finally(() => {
-      setAuthReady(true);    // ✅ auth resolved (authenticated)
+    if (!storedToken) {
+      setAuthReady(true); // ✅ auth resolved (unauthenticated)
       setCheckingSession(false);
-    });
-}, []);
+      return;
+    }
 
+    fetch(`${API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${storedToken}` },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          localStorage.removeItem("accessToken");
+          setToken(null);
+        } else if (res.ok) {
+          setToken(storedToken);
+        }
+      })
+      .finally(() => {
+        setAuthReady(true); // ✅ auth resolved (authenticated)
+        setCheckingSession(false);
+      });
+  }, []);
 
   /* ---------- Load Cart on Login ---------- */
   useEffect(() => {
@@ -113,7 +103,7 @@ useEffect(() => {
       navigate("/login", { replace: true });
     }
 
-    if (token && location.pathname === "/login") {
+    if (!checkingSession && token && location.pathname === "/login") {
       navigate("/products", { replace: true });
     }
   }, [token, checkingSession, location.pathname]);
@@ -164,30 +154,64 @@ useEffect(() => {
 
   /* ---------- MFE Mounts ---------- */
   const mountAuth = useCallback(
-    async (el: HTMLElement) => {
-      const { mount } = await import("auth/mount");
+    (el: HTMLElement) => {
+      let cleanup: (() => void) | undefined;
+      let cancelled = false;
 
-      return mount(el, {
-        onSuccess: (token: string) => {
-          localStorage.setItem("accessToken", token);
-          setToken(token);
-          navigate("/products");
-        },
+      import("auth/mount").then(({ mount }) => {
+        if (cancelled) return;
+
+        cleanup = mount(el, {
+          onSuccess: (token: string) => {
+            localStorage.setItem("accessToken", token);
+            setToken(token);
+            // navigate("/products");
+          },
+        });
       });
+
+      return () => {
+        cancelled = true;
+        cleanup?.();
+      };
     },
     [navigate],
   );
 
-  const mountProducts = useCallback(
-    async (el: HTMLElement) => {
-      const { mount } = await import("products/mount");
+const mountProducts = useCallback(
+  (el: HTMLElement) => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-      return mount(el, {
-        onAddToCart: addToCart,
+    import("products/mount")
+      .then(({ mount }) => {
+        if (cancelled) return;
+
+        cleanup = mount(el, {
+          onAddToCart: addToCart,
+        });
+      })
+      .catch((err) => {
+        console.error("Products MFE failed to load", err);
+        if (!cancelled) {
+          const root = createRoot(el);
+          root.render(
+            <div style={{ padding: 24, color: "#b91c1c" }}>
+              <h3>Products service unavailable</h3>
+              <p>Please start the Products MFE</p>
+            </div>
+          );
+        }
       });
-    },
-    [],
-  );
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  },
+  [addToCart], // ✅ keep fresh reference
+);
+
 
   if (checkingSession) {
     return <p style={{ padding: 24 }}>Checking session…</p>;
@@ -204,35 +228,41 @@ useEffect(() => {
       />
 
       <Routes>
-  <Route
-    path="/login"
-    element={
-      <MFEContainer
-        key="auth"
-        mount={mountAuth}
-      />
-    }
-  />
+        <Route
+          path="/login"
+          element={
+            <MFEErrorBoundary name="Auth App">
+              <MFEContainer mount={mountAuth} />
+            </MFEErrorBoundary>
+          }
+        />
 
-  <Route
-    path="/products"
-    element={
-      authReady ? (
-        <MFEContainer mount={mountProducts} />
-      ) : (
-        <p style={{ padding: 24 }}>Preparing session…</p>
-      )
-    }
-  />
+        <Route
+          path="/products"
+          element={
+            !authReady ? (
+              <p style={{ padding: 24 }}>Preparing products…</p>
+            ) : (
+              <MFEErrorBoundary name="Products App">
+                <MFEContainer
+                  key={`products-${token}`} // ✅ FORCE REMOUNT
+                  mount={mountProducts}
+                />
+              </MFEErrorBoundary>
+            )
+          }
+        />
 
-  <Route
-    path="/cart"
-    element={<CartPage cart={cart} onCheckout={checkout} />}
-  />
-
-  <Route path="*" element={<Navigate to="/products" replace />} />
-</Routes>
-
+        <Route
+          path="/cart"
+          element={
+            <MFEErrorBoundary name="Cart Page">
+              <CartPage cart={cart} onCheckout={checkout} />
+            </MFEErrorBoundary>
+          }
+        />
+        <Route path="*" element={<Navigate to="/products" replace />} />
+      </Routes>
     </>
   );
 };
