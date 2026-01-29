@@ -10,6 +10,8 @@ const Login: React.FC<Props> = ({ onSuccess }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const API_URL = process.env.REACT_APP_API_URL;
+  const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 
   useEffect(() => {
     let interval: number;
@@ -18,10 +20,9 @@ const Login: React.FC<Props> = ({ onSuccess }) => {
       if (!window.google || !googleRef.current) return;
 
       window.google.accounts.id.initialize({
-        client_id:
-          "313537263794-f3382uoot6kijjh1ua3obunblooitem0.apps.googleusercontent.com",
+        client_id: GOOGLE_CLIENT_ID,
         callback: async (response: any) => {
-          const res = await fetch("http://localhost:4000/auth/google", {
+          const res = await fetch(`${API_URL}/auth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ credential: response.credential }),
@@ -52,7 +53,7 @@ const Login: React.FC<Props> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:4000/auth/login", {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -79,7 +80,6 @@ const Login: React.FC<Props> = ({ onSuccess }) => {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        // style={{ width: "100%", marginBottom:  }}
         className="w-[400px] border-2 border-blue-200 bg-orange-100 p-2 m-2 pl-5 rounded-3xl text-black"
       />
 
@@ -88,7 +88,6 @@ const Login: React.FC<Props> = ({ onSuccess }) => {
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        // style={{ width: "100%", marginBottom: 8 }}
         className="w-[400px] border-2 border-blue-200 bg-orange-100 p-2 m-2 pl-5 rounded-3xl text-black"
       />
 

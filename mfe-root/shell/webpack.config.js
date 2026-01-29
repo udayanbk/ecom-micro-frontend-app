@@ -1,6 +1,15 @@
+require("dotenv").config();
+
+const Dotenv = require("dotenv-webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
-const path = require("path");
+
+if (!process.env.REACT_APP_AUTH_REMOTE) {
+  throw new Error("REACT_APP_AUTH_REMOTE is missing");
+}
+if (!process.env.REACT_APP_PRODUCTS_REMOTE) {
+  throw new Error("REACT_APP_PRODUCTS_REMOTE is missing");
+}
 
 module.exports = {
   entry: "./src/index.ts",
@@ -15,7 +24,7 @@ module.exports = {
     port: 3000,
     historyApiFallback: true,
     hot: true,
-    liveReload: false, // ⬅ prevents auto reload logout
+    liveReload: false,
   },
   module: {
     rules: [
@@ -31,17 +40,22 @@ module.exports = {
     ],
   },
   plugins: [
+    new Dotenv({
+      systemvars: true,
+    }),
+
     new ModuleFederationPlugin({
       name: "shell",
       remotes: {
-        auth: "auth@http://localhost:3001/remoteEntry.js",
-        products: "products@http://localhost:3002/remoteEntry.js",
+        auth: `auth@${process.env.REACT_APP_AUTH_REMOTE}`,
+        products: `products@${process.env.REACT_APP_PRODUCTS_REMOTE}`,
       },
       shared: {
-        react: { singleton: true, requiredVersion: false },
-        "react-dom": { singleton: true, requiredVersion: false },
+        react: { singleton: true },
+        "react-dom": { singleton: true },
       },
     }),
+
     new HtmlWebpackPlugin({
       template: "./public/index.html",
     }),

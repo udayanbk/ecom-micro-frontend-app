@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Product } from "./types/product.types";
 
-const API_URL = "http://localhost:4000";
+const API_URL = process.env.REACT_APP_API_URL;
 
 type Props = {
   onAddToCart?: (productId: string) => Promise<Product | void>;

@@ -7,20 +7,6 @@ declare module 'auth/mount' {
   ): () => void;
 }
 
-// declare module 'products/mount' {
-//   export function mount(
-//     el: HTMLElement,
-//     options?: {
-//       onAddToCart?: (item: {
-//         productId: string;
-//         name: string;
-//         price: number;
-//       }) => void;
-//       // canAddToCart?: boolean;
-//     }
-//   ): () => void;
-// }
-
 declare module 'products/mount' {
   export function mount(
     el: HTMLElement,

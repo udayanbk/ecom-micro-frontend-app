@@ -1,9 +1,8 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { ModuleFederationPlugin } = require('webpack').container;
-// const path = require("path");
+const Dotenv = require("dotenv-webpack");
 
 module.exports = {
-  // context: __dirname,
   entry: './src/index.ts',
   output: {
     publicPath: 'auto',
@@ -31,6 +30,8 @@ module.exports = {
     ]
   },
   plugins: [
+    new Dotenv(),
+
     new ModuleFederationPlugin({
       name: 'auth',
       filename: 'remoteEntry.js',

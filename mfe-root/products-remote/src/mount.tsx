@@ -21,6 +21,7 @@ export function mount(el: HTMLElement, options?: MountOptions) {
   root.render(<App onAddToCart={options?.onAddToCart} />);
 
   return () => {
-    // intentionally empty (shell controls lifecycle)
+    // intentionally empty 
+    // shell controls lifecycle
   };
 }

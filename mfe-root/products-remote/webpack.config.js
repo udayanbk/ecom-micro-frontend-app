@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
+const Dotenv = require("dotenv-webpack");
 
 module.exports = {
   entry: "./src/index.ts",
@@ -29,6 +30,8 @@ module.exports = {
     ],
   },
   plugins: [
+    new Dotenv(),
+    
     new ModuleFederationPlugin({
       name: "products",
       filename: "remoteEntry.js",

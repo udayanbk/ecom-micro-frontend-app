@@ -8,7 +8,7 @@ export class OrderService {
   async checkout(userId: string) {
     console.log('Starting checkout for user-1:', userId);
     return this.prisma.$transaction(async (tx) => {
-      // 1️⃣ Load cart with product & inventory
+      // Load cart with product & inventory
       const cart = await tx.cart.findUnique({
         where: { userId },
         include: {
@@ -30,7 +30,7 @@ export class OrderService {
 
       let total = 0;
 
-      // 2️⃣ Validate stock + calculate total
+      // Validate stock + calculate total
       console.log('Validating stock and calculating total in for loop');
       for (const item of cart.items) {
         const inventory = item.product.inventory;
@@ -52,7 +52,7 @@ export class OrderService {
         total += item.quantity * item.product.price;
       }
 
-      // 3️⃣ Decrement inventory atomically
+      // Decrement inventory atomically
       console.log('Decrementing inventory for cart items');
       for (const item of cart.items) {
         const updated = await tx.inventory.updateMany({
@@ -78,7 +78,7 @@ export class OrderService {
         }
       }
 
-      // 4️⃣ Create order
+      // Create order
       const order = await tx.order.create({
         data: {
           userId,
@@ -96,7 +96,7 @@ export class OrderService {
         },
       });
 
-      // 5️⃣ Clear cart
+      // Clear cart
       await tx.cartItem.deleteMany({
         where: { cartId: cart.id },
       });

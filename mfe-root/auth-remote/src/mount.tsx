@@ -24,11 +24,7 @@ export function mount(el: HTMLElement, options?: MountOptions) {
       }}
     />,
   );
-
-  // return () => {
-  //   root?.unmount();
-  //   roots.delete(el);
-  // };
+  
   return () => {
     queueMicrotask(() => {
       root?.unmount();
